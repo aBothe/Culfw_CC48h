@@ -1,0 +1,10 @@
+*.userprefs
+CunoTTY/bin/*
+CunoTTY/obj/*
+*.eep
+*.elf
+*.lss
+*.lst
+*.map
+*.sym
+*.o
