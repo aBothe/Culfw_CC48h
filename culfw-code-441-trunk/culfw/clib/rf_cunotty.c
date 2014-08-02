@@ -169,6 +169,7 @@ void rf_cunotty_func(char* in){
 		break;
 		case 't':
 			// Toggle reception; New status is set in in[2]
+		DC('e'); DC(in[2]); DNL();
 			cunotty_on = in[2];
 		break;
 	}

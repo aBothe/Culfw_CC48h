@@ -3,7 +3,6 @@
 //
 // Author:
 //       Alexander Bothe <info@alexanderbothe.com>
-//		 Eike Schwank
 //
 // Copyright (c) 2014 Alexander Bothe
 //
@@ -32,193 +31,52 @@ using System.IO;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Cunotty
+namespace CunoTTY
 {
-	class MainClass
+	public class Program
 	{
-		public enum SensorType : byte
+		public static void Main(string[] args)
 		{
-			Temperature = 254,
-			Brightness = 255
-		}
+			var port1 = new SerialPort ("/dev/ttyUSB0", 38400);
+			var port2 = new SerialPort ("/dev/ttyUSB1", 38400);
 
-		static Dictionary<int, byte[]> fileCache = new Dictionary<int, byte[]>();
+			var enc = Encoding.ASCII;
 
-		static float Temperature;
-		static float Brightness;
-		static SerialPort serialPort;
+			port1.Encoding = port2.Encoding = enc;
 
-		public static void Main (string[] args)
-		{
-			const int port = 12000;
-			serialPort = new SerialPort (args.Length == 0 ? "/dev/ttyUSB0" : args [0], 9600);
-			serialPort.DataBits = 8;
-			serialPort.RtsEnable = true;
-			serialPort.Handshake = Handshake.None;
-			serialPort.StopBits = StopBits.One;
+			port1.Open ();
+			port2.Open ();
 
-			try{
-				serialPort.Open ();
-			}catch(Exception ex) {
-				Console.WriteLine (ex.Message);
-				return;
-			}
+			var sr1 = new StreamReader (port1.BaseStream, enc);
+			var sr2 = new StreamReader (port2.BaseStream, enc);
+			var sw1 = new StreamWriter(port1.BaseStream, enc) { AutoFlush = false };
+			var sw2 = new StreamWriter (port2.BaseStream, enc) { AutoFlush = false };
 
-			// Start Listener
-			new Thread(readTh).Start(serialPort);
+			// Init reception processes
+			sw1.Write("\"t1\r\n");
+			sw1.Flush ();
+			sw2.Write("\"t1\r\n");
+			sw2.Flush ();
 
-			// Acquire sensors update
-			serialPort.BaseStream.WriteByte ((byte)'#');
+			Console.WriteLine (sr1.ReadLine());
+			Console.WriteLine ("--------------------------");
 
-			var listener = new HttpListener();
-			// Add the prefixes.
-			listener.Prefixes.Add ("http://*:"+port.ToString()+"/");
-			listener.Start();
+			// Send message
+			string msgToSend = "Hallo";
+			/*
+			sw1.Write ("\"s");
+			sw1.Write ((byte)msgToSend.Length);
+			sw1.Write (msgToSend);
+			sw1.Write ("\r\n");
 
-			const string responseString = @"";
+			sw1.Flush ();*/
 
-			Console.WriteLine("Listening on port "+port.ToString());
+			// Wait for its reception
+			Console.WriteLine (sr2.ReadLine());
 
-			for(;;)
-				ThreadPool.QueueUserWorkItem (BuildAnswer, listener.GetContext ());
-
-			listener.Stop();
-		}
-
-		static void readTh(object s)
-		{
-			Thread.CurrentThread.IsBackground = true;
-			var port = s as SerialPort;
-
-			var data = new byte[3];
-			int len;
-
-			while(port.IsOpen)
-			{
-				try{
-					len = port.Read(data, 0, data.Length);
-				}catch(IOException io) {
-					len = 0;
-				}
-
-				if(len < 3)
-				{
-					if(len == 0)
-						Thread.Sleep(100);
-					continue;
-				}
-
-				switch((SensorType) data[0])
-				{
-					case SensorType.Brightness:
-						Brightness = ((float)BitConverter.ToInt16 (data, 1) / 1024f) * 100f;
-						break;
-					case SensorType.Temperature:
-						Temperature = (float)data[1];
-						if (data [2] == 1)
-							Temperature = -Temperature;
-						break;
-				}
-			}
-		}
-
-		static DateTime LastIndexWriteTime;
-		static string indexContent;
-		const string indexFile = "/index.html";
-
-		static void BuildAnswer(object s)
-		{
-			var ctxt = s as HttpListenerContext;
-			var request = ctxt.Request;
-			var response = ctxt.Response;
-
-			var hash = request.Url.LocalPath.GetHashCode ();
-			var absPath = "." + request.Url.LocalPath;
-			byte[] data = null;
-
-			if (request.Url.LocalPath == "/" || request.Url.LocalPath == indexFile) {
-				byte ans;
-				byte.TryParse (request.QueryString ["m"], out ans);
-
-				var ser = serialPort.BaseStream;
-				if (ans > 0) {
-					ser.WriteByte (ans);
-				}
-
-				var color = request.QueryString ["color"];
-
-				if (color != null && color.Length == 6) {
-					try{
-						byte r,g,b;
-						GetColor(color, out r, out g, out b);
-						ser.WriteByte((byte)'$');
-						ser.WriteByte(r);
-						ser.WriteByte(g);
-						ser.WriteByte(b);
-					}catch(Exception ex){
-					}
-				}
-
-				if (!string.IsNullOrEmpty (request.QueryString ["data"])) {
-					data = Encoding.UTF8.GetBytes (string.Format (System.Globalization.CultureInfo.InvariantCulture.NumberFormat,"{{\"temp\":{0:0.#} , \"brightness\":{1:0.##}}}", Temperature, Brightness));
-				} else {
-					if (request.Url.LocalPath == "/")
-						absPath = "." + indexFile;
-
-					if (File.GetLastWriteTimeUtc (absPath) > LastIndexWriteTime || indexContent == null) {
-						indexContent = File.ReadAllText (absPath);
-						LastIndexWriteTime = File.GetLastWriteTimeUtc (absPath);
-					}
-
-					data = Encoding.UTF8.GetBytes (indexContent);
-				}
-			} else if (request.RawUrl.Contains ("/res/")) {
-				if (File.Exists (absPath)) {
-					if (!fileCache.TryGetValue (hash, out data))
-						fileCache [hash] = data = File.ReadAllBytes (absPath);
-				} else {
-					response.StatusCode = 404;
-					response.StatusDescription = absPath + " not found";
-				}
-			}
-
-			if (data != null) {
-				// Get a response stream and write the response to it.
-				response.ContentLength64 = data.Length;
-				response.OutputStream.Write (data, 0, data.Length);
-				response.OutputStream.Close();
-			}
-			response.Close ();
-		}
-
-
-		public static void GetColor(string s, out byte r, out byte g, out byte b)
-		{
-			if (s.Length < 6) {
-				r = g = b = 0;
-				return;
-			}
-			r = (byte)((GetHexNumber (s [0]) * 16) + GetHexNumber (s [1]));
-			g = (byte)((GetHexNumber (s [2]) * 16) + GetHexNumber (s [3]));
-			b = (byte)((GetHexNumber (s [4]) * 16) + GetHexNumber (s [5]));
-		}
-
-		public static int GetHexNumber(char digit)
-		{
-			if (digit >= '0' && digit <= '9')
-			{
-				return digit - '0';
-			}
-			if ('A' <= digit && digit <= 'F')
-			{
-				return digit - 'A' + 0xA;
-			}
-			if ('a' <= digit && digit <= 'f')
-			{
-				return digit - 'a' + 0xA;
-			}
-			//errors.Error(line, col, String.Format("Invalid hex number '" + digit + "'"));
-			return 0;
+			port1.Close ();
+			port2.Close ();
 		}
 	}
 }
+
