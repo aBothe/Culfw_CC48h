@@ -244,6 +244,9 @@ rf_cunotty_init();
 #ifdef HAS_RF_ROUTER
     rf_router_task();
 #endif
+#ifdef HAS_CUNOTTY
+	rf_cunotty_task();
+#endif
 #ifdef HAS_ASKSIN
     rf_asksin_task();
 #endif
@@ -255,9 +258,6 @@ rf_cunotty_init();
 #endif
 #ifdef HAS_VZ
     vz_task();
-#endif
-#ifdef HAS_CUNOTTY
-	rf_cunotty_task();
 #endif
 #ifdef HAS_MORITZ
     rf_moritz_task();

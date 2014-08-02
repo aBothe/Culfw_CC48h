@@ -59,7 +59,7 @@
 
 #define FHTBUF_SIZE          174      //                 RAM: 174b
 #define RCV_BUCKETS            4      //                 RAM: 25b * bucket
-#define HAS_RF_ROUTER          1      // PROGMEM: 1106b, RAM: 43b
+//#define HAS_RF_ROUTER          1      // PROGMEM: 1106b, RAM: 43b
 #define RFR_DEBUG                     // PROGMEM:  354b  RAM: 14b
 #define FULL_CC1100_PA                // PROGMEM:  108b
 #define HAS_RAWSEND                   //
@@ -68,9 +68,9 @@
 #define HAS_ASKSIN_FUP
 #define HAS_ESA
 #define HAS_TX3
-#define HAS_INTERTECHNO
-#define HAS_HOERMANN
-#define HAS_MORITZ
+//#define HAS_INTERTECHNO
+//#define HAS_HOERMANN
+//#define HAS_MORITZ
 #define HAS_CC1101_RX_PLL_LOCK_CHECK_TASK_WAIT
 #define HAS_CC1101_PLL_LOCK_CHECK_MSG
 #define HAS_CC1101_PLL_LOCK_CHECK_MSG_SW

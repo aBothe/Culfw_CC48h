@@ -23,6 +23,8 @@
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
+#define P2
+using System.Threading.Tasks;
 using System;
 using System.IO.Ports;
 using System.Threading;
@@ -38,44 +40,104 @@ namespace CunoTTY
 		public static void Main(string[] args)
 		{
 			var port1 = new SerialPort ("/dev/ttyUSB0", 38400);
+			#if P2
 			var port2 = new SerialPort ("/dev/ttyUSB1", 38400);
-
+			#endif
 			var enc = Encoding.ASCII;
 
-			port1.Encoding = port2.Encoding = enc;
+			port1.Encoding = enc;
+			#if P2
+			port2.Encoding = enc;
+			port2.Open ();
+			#endif
 
 			port1.Open ();
-			port2.Open ();
 
 			var sr1 = new StreamReader (port1.BaseStream, enc);
-			var sr2 = new StreamReader (port2.BaseStream, enc);
 			var sw1 = new StreamWriter(port1.BaseStream, enc) { AutoFlush = false };
-			var sw2 = new StreamWriter (port2.BaseStream, enc) { AutoFlush = false };
 
 			// Init reception processes
 			sw1.Write("\"t1\r\n");
 			sw1.Flush ();
+
+			#if P2
+			var sr2 = new StreamReader (port2.BaseStream, enc);
+			var sw2 = new StreamWriter (port2.BaseStream, enc) { AutoFlush = false };
 			sw2.Write("\"t1\r\n");
 			sw2.Flush ();
-
-			Console.WriteLine (sr1.ReadLine());
-			Console.WriteLine ("--------------------------");
+			#endif
 
 			// Send message
-			string msgToSend = "Hallo";
-			/*
-			sw1.Write ("\"s");
-			sw1.Write ((byte)msgToSend.Length);
-			sw1.Write (msgToSend);
-			sw1.Write ("\r\n");
+			string msgToSend = "DerpDerp";
 
-			sw1.Flush ();*/
+
+
+			var task = Task.Factory.StartNew (() => {
+				char c;
+				while(port1.IsOpen)
+				{
+					Console.Write("sr1: ");
+					c = (char)sr1.Read();
+					switch(c)
+					{
+						case '\r':
+						case '\n':
+							Console.WriteLine();
+							break;
+						default:
+							Console.Write(c);
+							break;
+					}
+					Console.WriteLine();
+				}
+				Console.WriteLine();
+				Console.WriteLine("sr1 finished");
+			});
+
+			#if P2
+			var task2 = Task.Factory.StartNew (() => {
+				char c;
+				while(port2.IsOpen)
+				{
+					Console.Write("sr2: ");
+					c = (char)sr2.Read();
+					switch(c)
+					{
+						case '\r':
+						case '\n':
+							Console.WriteLine();
+							break;
+						default:
+							Console.Write(c);
+							break;
+					}
+				}
+				Console.WriteLine();
+				Console.WriteLine("sr2 finished");
+			});
+			#endif
+
 
 			// Wait for its reception
-			Console.WriteLine (sr2.ReadLine());
+			Console.WriteLine ("Press <Return> to exit. Press S to send string.");
+			for (;;) {
+				var uinp = Console.ReadLine ();
+				if (string.IsNullOrWhiteSpace (uinp))
+					break;
+				if (uinp.StartsWith ("s")) {
+					sw1.Write ("\"s");
+					sw1.Write ((byte)msgToSend.Length);
+					sw1.Write ('Q');
+					sw1.Write ("\r\n");
+
+					sw1.Flush ();
+				}
+			}
 
 			port1.Close ();
+			#if P2
 			port2.Close ();
+			#endif
 		}
 	}
 }

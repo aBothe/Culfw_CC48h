@@ -12,10 +12,26 @@
 #include "rf_cunotty.h"
 
 uint8_t cunotty_on = 0;
+uint8_t cunotty_init = 0;
 char cunotty_msgbuf[255];
 
 void rf_cunotty_init(void) {
+	if(cunotty_init)
+		return;
+	cunotty_init = 1;
 	
+	EIMSK &= ~_BV(CC1100_INT);                 // disable INT - we'll poll...
+  SET_BIT( CC1100_CS_DDR, CC1100_CS_PIN );   // CS as output
+
+  CC1100_DEASSERT;                           // Toggle chip select signal
+  my_delay_us(30);
+  CC1100_ASSERT;
+  my_delay_us(30);
+  CC1100_DEASSERT;
+  my_delay_us(45);
+
+  ccStrobe( CC1100_SRES );                   // Send SRES command
+  my_delay_us(100);
 }
 
 // Receive messages and pipe them to the usb connector
@@ -33,7 +49,7 @@ void rf_cunotty_task(void){
       rf_asksin_reset_rx();
       return;
     }*/
-
+	DC('K'); DNL();
     CC1100_ASSERT;
     cc1100_sendbyte( CC1100_READ_BURST | CC1100_RXFIFO );
     
@@ -55,11 +71,6 @@ void rf_cunotty_task(void){
     for (uint8_t i=0; i<msgLen; i++) {
          cunotty_msgbuf[i] = cc1100_sendbyte( 0 );
     }
-    
-    if(cc1100_sendbyte( 0 ) != 0){
-		DC('e'); DC('5'); DNL();
-		return;
-	}
     
     CC1100_DEASSERT;
 
@@ -119,18 +130,16 @@ void rf_cunotty_task(void){
 }
 
 void cunotty_emitBroadcast(char* str, uint8_t len){
-	my_delay_ms(3); 
+	//my_delay_ms(3); 
 	// enable TX, wait for CCA
 	  do {
 		ccStrobe(CC1100_STX);
 	  } while (cc1100_readReg(CC1100_MARCSTATE) != MARCSTATE_TX);
-
 		my_delay_ms(10);
 
 	  // send
 	  CC1100_ASSERT;
 	  cc1100_sendbyte(CC1100_WRITE_BURST | CC1100_TXFIFO);
-	  
 	  // send magic bytes 0xfeedface
 	  cc1100_sendbyte(0xfe);
 	  cc1100_sendbyte(0xed);
@@ -139,20 +148,18 @@ void cunotty_emitBroadcast(char* str, uint8_t len){
 	  
 	  // length
 	  cc1100_sendbyte(len);
-
+	  
 	  // msg payload
 	  for(uint8_t i = 0; i < len; i++) {
 		cc1100_sendbyte(str[i]);
 	  }
 	  
-	  cc1100_sendbyte(0);
-
 	  CC1100_DEASSERT;
-
+	  
 	  // wait for TX to finish
 	  while(cc1100_readReg( CC1100_MARCSTATE ) == MARCSTATE_TX)
 		;
-
+	  
 	  if (cc1100_readReg( CC1100_MARCSTATE ) == MARCSTATE_TXFIFO_UNDERFLOW) {
 		  ccStrobe( CC1100_SFTX  );
 		  ccStrobe( CC1100_SIDLE );
@@ -169,10 +176,13 @@ void rf_cunotty_func(char* in){
 		break;
 		case 't':
 			// Toggle reception; New status is set in in[2]
-		DC('e'); DC(in[2]); DNL();
 			cunotty_on = in[2];
+			rf_cunotty_init();
 		break;
+		default:
+			break;
 	}
+	return;
 }
 
 
