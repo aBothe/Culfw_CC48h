@@ -34,6 +34,10 @@
 #include "onewire.h"
 #include "intertechno.h"
 
+#undef HAS_MORITZ
+#undef HAS_ASKSIN
+#define HAS_CUNOTTY
+
 #ifdef HAS_VZ
 #include "vz.h"
 #endif
@@ -62,6 +66,10 @@
 
 #ifdef HAS_MORITZ
 #include "rf_moritz.h"
+#endif
+
+#ifdef HAS_CUNOTTY
+#include "rf_cunotty.h"
 #endif
 
 const PROGMEM t_fntab fntab[] = {
@@ -121,6 +129,10 @@ const PROGMEM t_fntab fntab[] = {
   { 'E', eth_func },
   { 'c', ntp_func },
   { 'q', tcplink_close },
+  
+#ifdef HAS_CUNOTTY
+  {'"', rf_cunotty_func},
+#endif
 
   { 0, 0 },
 };
@@ -212,6 +224,10 @@ main(void)
   helios_initialize();
 #endif
 
+#ifdef HAS_CUNOTTY
+rf_cunotty_init();
+#endif
+
   sei();
 
 #ifdef HAS_DMX
@@ -239,6 +255,9 @@ main(void)
 #endif
 #ifdef HAS_VZ
     vz_task();
+#endif
+#ifdef HAS_CUNOTTY
+	rf_cunotty_task();
 #endif
 #ifdef HAS_MORITZ
     rf_moritz_task();

@@ -25,6 +25,7 @@ SRC = $(TARGET).c                                                    \
 		../../clib/rf_asksin.c                               \
 		../../clib/rf_receive.c                              \
 		../../clib/rf_router.c                               \
+		../../clib/rf_cunotty.c                               \
 		../../clib/rf_moritz.c                               \
 		../../clib/fht.c                                     \
 		../../clib/fastrf.c                                  \
