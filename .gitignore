@@ -8,3 +8,5 @@ CunoTTY/obj/*
 *.map
 *.sym
 *.o
+*.hex
+culfw-code-441-trunk/culfw/Devices/CUNO2/.dep/*
