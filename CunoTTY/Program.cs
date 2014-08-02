@@ -79,7 +79,7 @@ namespace Cunotty
 
 			Console.WriteLine("Listening on port "+port.ToString());
 
-			while (true)
+			for(;;)
 				ThreadPool.QueueUserWorkItem (BuildAnswer, listener.GetContext ());
 
 			listener.Stop();
